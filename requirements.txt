@@ -1,0 +1,15 @@
+# Core data and computation
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Modeling
+prophet>=1.1.0
+xgboost>=2.0.0
+scikit-learn>=1.3.0
+
+# Timezone handling (usually bundled with pandas, but explicit for clarity)
+pytz>=2023.3
