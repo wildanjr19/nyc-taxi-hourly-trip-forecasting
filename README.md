@@ -20,7 +20,7 @@ Research questions (rumusan masalah) utama:
 
 ## Diagram Alir Penelitian
 
-![Diagram alir penelitian](assets/bdts_diagram_alir.jpg)
+![Diagram alir penelitian](assets/bdts_diagram_alir_v2.jpg)
 
 Diagram di atas merangkum alur penelitian mulai dari data collection,
 preprocessing berbasis waktu, feature engineering, time series cross
