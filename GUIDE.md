@@ -113,7 +113,7 @@ Catatan penting:
 
 ## 5. Urutan Pipeline Utama
 
-Urutan eksekusi yang direkomendasikan:
+Urutan eksekusi full research run yang direkomendasikan:
 
 ```bash
 python -m src.preprocessing
@@ -124,6 +124,11 @@ python -m src.experiments.tune_xgb_basic
 python -m src.experiments.tune_xgb_advanced
 python -m src.experiments.experiment_a
 python -m src.experiments.experiment_b
+python -m src.experiments.retrain_best_models
+python -m src.experiments.final_test
+python -m src.experiments.compare_models
+python -m src.experiments.model_interpretability
+python -m src.experiments.error_analysis
 ```
 
 Tahap tersebut mencakup:
@@ -138,16 +143,27 @@ Tahap tersebut mencakup:
 | Tuning XGBoost-Advanced | `python -m src.experiments.tune_xgb_advanced` | `outputs/experiments/xgb_advanced/` |
 | Experiment A | `python -m src.experiments.experiment_a` | `outputs/reports/experiment_a_prophet_vs_xgb_basic.md` |
 | Experiment B | `python -m src.experiments.experiment_b` | `outputs/reports/experiment_b_xgb_basic_vs_xgb_advanced.md` |
+| Retraining best configurations | `python -m src.experiments.retrain_best_models` | `outputs/experiments/retraining/` |
+| Final testing | `python -m src.experiments.final_test` | `outputs/final_test/`, `outputs/reports/final_test_report.md` |
+| Comparative evaluation | `python -m src.experiments.compare_models` | `outputs/reports/comparative_evaluation.md` |
+| Model interpretability | `python -m src.experiments.model_interpretability` | `outputs/reports/model_interpretability.md` |
+| Error pattern analysis | `python -m src.experiments.error_analysis` | `outputs/reports/error_analysis.md` |
+| Conclusion dan research summary | manual synthesis | `outputs/reports/conclusion.md` |
 
-Catatan scope:
+Catatan urutan:
 
-- Panduan ini mengikuti script CLI yang tersedia pada repository saat ini.
-- Tahap retraining dan final testing tetap tercatat sebagai bagian metodologi
-  penelitian di [RESEARCH_PIPELINE.md](RESEARCH_PIPELINE.md) dan
-  [PLAN.md](PLAN.md).
-- Jika script retraining atau final testing ditambahkan kemudian, jalankan
-  tahap tersebut setelah tuning best configurations dan sebelum penyusunan
-  kesimpulan final.
+- Experiment A dan Experiment B membaca artefak best CV dan belum menyentuh
+  final test.
+- Retraining memakai best params hasil tuning dan seluruh `train_val`.
+- Final testing adalah evaluasi satu kali pada hold-out `final_test`.
+- Comparative evaluation, model interpretability, dan error analysis membaca
+  artefak yang sudah dibuat. Tahap tersebut tidak melakukan tuning ulang.
+- Jika menjalankan ulang final testing pada repository yang sudah memiliki
+  output final test, tambahkan `--overwrite` secara sadar:
+
+```bash
+python -m src.experiments.final_test --overwrite
+```
 
 ## 6. Smoke Test dengan Runtime Lebih Ringan
 
@@ -163,6 +179,11 @@ python -m src.experiments.tune_xgb_basic --max-parameter-sets 3 --skip-plots
 python -m src.experiments.tune_xgb_advanced --max-parameter-sets 3 --skip-plots
 python -m src.experiments.experiment_a --skip-plots
 python -m src.experiments.experiment_b --skip-plots
+python -m src.experiments.retrain_best_models
+python -m src.experiments.final_test --skip-plots
+python -m src.experiments.compare_models --skip-plots
+python -m src.experiments.model_interpretability --skip-plots --shap-sample-size 500
+python -m src.experiments.error_analysis --skip-plots --top-n 5 --acf-max-lag 24
 ```
 
 Catatan:
@@ -171,6 +192,9 @@ Catatan:
 - Hasil smoke test tidak dianggap sebagai hasil penelitian final.
 - Jika ingin menghasilkan benchmark penuh, jalankan tuning tanpa
   `--max-parameter-sets`.
+- Jika smoke test dijalankan di atas output yang sudah ada, gunakan
+  `python -m src.experiments.final_test --skip-plots --overwrite` agar tahap
+  final test boleh menulis ulang output.
 
 ## 7. Output dan Lokasi Artefak
 
@@ -183,6 +207,7 @@ outputs/preprocessing/
 outputs/splits/
 outputs/features/
 outputs/experiments/
+outputs/final_test/
 outputs/logs/
 outputs/reports/
 ```
@@ -200,6 +225,16 @@ File yang umum dicek setelah pipeline selesai:
 | `outputs/experiments/*/cv_predictions.csv` | prediction output CV |
 | `outputs/reports/experiment_a_prophet_vs_xgb_basic.md` | report Experiment A |
 | `outputs/reports/experiment_b_xgb_basic_vs_xgb_advanced.md` | report Experiment B |
+| `outputs/experiments/retraining/model_registry.json` | registry model hasil retraining |
+| `outputs/experiments/retraining/training_summary.csv` | ringkasan training time retraining |
+| `outputs/final_test/metrics/final_metrics.csv` | metrics final test |
+| `outputs/final_test/metrics/final_runtime.csv` | time cost final test |
+| `outputs/final_test/predictions/final_predictions.csv` | prediksi final test |
+| `outputs/reports/final_test_report.md` | report final testing |
+| `outputs/reports/comparative_evaluation.md` | report evaluasi komparatif final |
+| `outputs/reports/model_interpretability.md` | report interpretability model |
+| `outputs/reports/error_analysis.md` | report error pattern analysis |
+| `outputs/reports/conclusion.md` | sintesis akhir penelitian |
 
 Setiap eksperimen menyimpan:
 
@@ -259,7 +294,7 @@ Sebelum menggunakan hasil eksperimen, pastikan prinsip berikut tetap terpenuhi:
 
 ## 10. Membaca Hasil Eksperimen
 
-Untuk melihat hasil tuning model:
+Untuk melihat hasil tuning dan CV model:
 
 ```text
 outputs/experiments/prophet/
@@ -267,7 +302,7 @@ outputs/experiments/xgb_basic/
 outputs/experiments/xgb_advanced/
 ```
 
-Untuk membaca ringkasan komparatif:
+Untuk membaca ringkasan komparatif tahap CV:
 
 ```text
 outputs/reports/experiment_a_prophet_vs_xgb_basic.md
@@ -288,6 +323,28 @@ XGBoost-Basic vs XGBoost-Advanced
 
 Metric utama untuk pemilihan best configuration adalah MAE. RMSE, MAPE, dan
 sMAPE digunakan sebagai metric pendukung.
+
+Untuk membaca hasil setelah retraining dan final testing:
+
+```text
+outputs/reports/final_test_report.md
+outputs/reports/comparative_evaluation.md
+outputs/reports/model_interpretability.md
+outputs/reports/error_analysis.md
+outputs/reports/conclusion.md
+```
+
+File ringkasan numerik final yang paling sering dirujuk:
+
+```text
+outputs/final_test/metrics/final_metrics.csv
+outputs/final_test/metrics/final_runtime.csv
+outputs/experiments/comparative_evaluation/metrics/time_cost_computing.csv
+```
+
+Kesimpulan akhir penelitian dibaca dari `outputs/reports/conclusion.md`.
+Report tersebut menyintesis hasil CV, retraining, final test, comparative
+evaluation, interpretability, error analysis, dan time cost computing.
 
 ## 11. Troubleshooting
 
@@ -361,6 +418,50 @@ outputs/experiments/xgb_advanced/best_params.json
 
 Experiment A membutuhkan artefak Prophet dan XGBoost-Basic. Experiment B
 membutuhkan artefak XGBoost-Basic dan XGBoost-Advanced.
+
+### Retraining gagal karena best params tidak ditemukan
+
+Pastikan tahap tuning sudah selesai dan file berikut tersedia:
+
+```text
+outputs/experiments/prophet/best_params.json
+outputs/experiments/xgb_basic/best_params.json
+outputs/experiments/xgb_advanced/best_params.json
+```
+
+Lalu jalankan:
+
+```bash
+python -m src.experiments.retrain_best_models
+```
+
+### Final test menolak overwrite output
+
+Secara default, final test menjaga agar hasil evaluasi akhir tidak tertimpa
+tanpa sengaja. Jika memang ingin menjalankan ulang final test, gunakan:
+
+```bash
+python -m src.experiments.final_test --overwrite
+```
+
+Tambahkan `--skip-plots` jika hanya ingin mempercepat validasi alur.
+
+### Comparative evaluation atau error analysis gagal
+
+Pastikan final testing sudah selesai dan menghasilkan:
+
+```text
+outputs/final_test/metrics/final_metrics.csv
+outputs/final_test/metrics/final_runtime.csv
+outputs/final_test/predictions/final_predictions.csv
+```
+
+Setelah itu jalankan ulang:
+
+```bash
+python -m src.experiments.compare_models
+python -m src.experiments.error_analysis
+```
 
 ## 12. Catatan untuk Push ke GitHub
 
