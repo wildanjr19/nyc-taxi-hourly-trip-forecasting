@@ -1,0 +1,44 @@
+======================================================================
+EDA SUMMARY REPORT — NYC Taxi Hourly Trip Count
+======================================================================
+
+1. DATA STRUCTURE
+   - Total rows: 10918
+   - Total columns: 15
+   - Time range: 2025-01-01 00:00:00-05:00 to 2026-03-31 23:00:00-04:00
+   - Missing values: 5
+   - Duplicate timestamps: 0
+   - Missing hours (expected 10920): 2 (DST spring forward)
+
+2. TARGET DISTRIBUTION
+   - Mean trip_count: 5477.17
+   - Median trip_count: 6034.50
+   - Std Dev: 3057.99
+   - Skewness: -0.1385
+   - Outliers (IQR): 0
+
+3. TEMPORAL PATTERNS
+   - Peak hour (avg): 18.0 (9398 trips)
+   - Lowest hour (avg): 4.0 (997 trips)
+   - Highest day (avg): Sat (5972 trips)
+   - Lowest day (avg): Mon (4623 trips)
+   - Weekend avg: 5504 | Weekday avg: 5466
+
+4. AUTOCORRELATION INSIGHTS
+   - Lags with |ACF| > 0.5: [1, 2, 3, 12, 21, 22, 23, 24, 25, 26] ...
+   - Strong daily seasonality expected at lag 24
+   - Strong weekly seasonality expected at lag 168
+
+5. FEATURE ENGINEERING JUSTIFICATION
+   a) Lag features:
+      - lag_1: trip_count sangat berkorelasi dengan 1 jam sebelumnya (ACF tinggi)
+      - lag_24: daily seasonality sangat kuat
+      - lag_168: weekly seasonality sangat kuat
+      - Additional lags (2,3,6,12,48,72) untuk advanced model menangkap pola multi-lag
+   b) Rolling features:
+      - rolling_mean_24 & rolling_mean_168: smoothing untuk menangkap trend harian & mingguan
+      - rolling_std_24: volatilitas intraday
+   c) Calendar features:
+      - hour & day_of_week: dasar untuk seasonal pattern harian & mingguan
+      - is_weekend: perbedaan perilaku akhir pekan vs hari kerja signifikan
+      - month: trend musiman panjang jika ada
