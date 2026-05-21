@@ -239,5 +239,8 @@ Penelitian ini menerapkan beberapa guardrail untuk menjaga validitas hasil:
 - Output eksperimen disimpan dalam struktur folder yang konsisten.
 
 ## Citation and Attribution
-
+- Wildan Abid Al H
+- Iga Sena H
+- Nabila Putri A
+- Vivian Aileen H
 > Proyek ini disusun sebagai penelitian forecasting berbasis NYC Taxi hourly trip count. Jika repository ini digunakan sebagai referensi akademis atau praktikum, sertakan atribusi terhadap proyek dan dokumentasikan perubahan metodologi yang dilakukan.
