@@ -14,3 +14,6 @@ shap>=0.45.0
 
 # Timezone handling (usually bundled with pandas, but explicit for clarity)
 pytz>=2023.3
+
+# autosarima
+pmdarima>=2.0.0
