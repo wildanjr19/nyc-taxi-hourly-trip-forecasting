@@ -18,6 +18,9 @@ Final test tetap dipakai hanya sebagai label evaluasi dari output tahap 14. Semu
 | 2 | XGBoost-Advanced | xgb_advanced_210 | 577.166385 | 942.704153 | 12.358912 | 13.238262 | 4.067967 | 1.151408 | 0 |
 | 3 | Prophet | prophet_005 | 1265.318768 | 1644.596324 | 40.685479 | 41.841144 | 2.644693 | 3.525288 | 34 |
 
+> `prediction_time_seconds` : waktu prediksi pada tahap final_test, saat mode sudah diretrain diload lalu dipakai memprediksi final test 720 jam  
+> `retraining_train_time_seconds` : waktu training pada tahap retraining best configurations, yaitu saat model terbaik dilatih ulang memakai train_val sebelum final test.  
+>  
 Ranking tiap metric:
 
 | rank | mae | mape | rmse | smape |
