@@ -238,13 +238,15 @@ Penelitian ini menerapkan beberapa guardrail untuk menjaga validitas hasil:
 - XGBoost validation menggunakan recursive forecasting 24 jam.
 - Output eksperimen disimpan dalam struktur folder yang konsisten.
 
-## Update Logs
-Revisi from our Lecturer
-1. Sanity Cek SARIMA (Done/Solved)
-Kami melakukan pemodelan menggunakan Auto-SARIMA untuk menguji apakah model statistik konvensional cocok dan mampu pada data yang digunakan. Pengujian menghasilkan bahwa model statistik konvensional, Auto-SARIMA tidak cocok digunakan pada data ini. Hasil pengujian residual menunjukkan bahwa residu memiliki autokorelasi dan tidak white-noise.
-ref : 
-2. Add Regressor For Prophet (Done/Solved)
-Muncul bias yaitu perbandingan Prophet dengan XGBoost-Basic terkesan tidak adil, karena XGBoost-Basic menggunakan fitur tambahan atau regressor sedangkan Prophet tidak (tetap univariate). Semua dokumen hasil revisi, diberi nama `revisi_1`
+## Changelog
+
+### Revisi 1
+> Revisi berdasarkan masukan dosen.
+
+| # | Item | Status | Keterangan |
+|---|------|--------|------------|
+| 1 | Sanity check SARIMA | ✅ Done | Auto-SARIMA diuji untuk memvalidasi apakah model statistik konvensional cocok pada data ini. Hasil: residual berautokorelasi dan tidak white-noise, sehingga SARIMA tidak layak digunakan. Ref: [sarima_sanity_test](src/experiments/sarima_sanity_test.py) |
+| 2 | Tambah regressor Prophet | ✅ Done | Prophet ditambahkan regressor agar perbandingan dengan XGBoost-Basic lebih adil (keduanya kini menggunakan fitur tambahan). Output revisi diberi suffix `_revisi_1`. |
 
 ## Citation and Attribution
 - Wildan Abid Al H
