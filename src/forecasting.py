@@ -40,6 +40,10 @@ from src.config import (
     XGB_BASIC_LAGS,
 )
 from src.features import ADVANCED_FEATURE_SET, BASIC_FEATURE_SET, get_feature_columns
+from src.models.prophet_model import (
+    PROPHET_BASIC_REGRESSORS,
+    PROPHET_REGRESSOR_BASIC_FEATURE_SET,
+)
 
 
 PREDICTION_COL = "predicted"
@@ -373,6 +377,203 @@ def recursive_forecast_prophet(
     return predictions
 
 
+def recursive_forecast_prophet_regressor(
+    model: Any,
+    history_df: pd.DataFrame,
+    horizon: int = FORECAST_HORIZON,
+    *,
+    future_index: Optional[Sequence[Union[str, pd.Timestamp]]] = None,
+    target_col: str = TARGET_COL,
+    model_name: str = "prophet_regressor_basic",
+    forecast_origin: Optional[Union[str, pd.Timestamp]] = None,
+    fold: Optional[Union[int, str]] = None,
+    parameter_set_id: Optional[Union[int, str]] = None,
+) -> pd.DataFrame:
+    """
+    Prediksi recursive Prophet dengan regressor XGBoost-Basic.
+
+    Lag regressor masa depan dibangun dari history masa lalu dan prediksi
+    recursive sebelumnya, bukan dari actual validation/test.
+    """
+    if horizon <= 0:
+        raise ValueError("horizon harus > 0")
+
+    working_history = _validate_history(history_df, target_col=target_col)
+    _validate_predict_model(model)
+
+    if future_index is None:
+        target_index = _make_default_future_index(working_history.index, horizon)
+    else:
+        target_index = _coerce_future_index(future_index)
+        if len(target_index) != horizon:
+            raise ValueError(
+                "Panjang future_index harus sama dengan horizon. "
+                f"len(future_index)={len(target_index)}, horizon={horizon}"
+            )
+
+    if target_index.min() <= working_history.index.max():
+        raise ValueError(
+            "future_index harus seluruhnya berada setelah timestamp akhir history."
+        )
+    if not target_index.is_monotonic_increasing:
+        raise ValueError("future_index harus chronological.")
+    if target_index.has_duplicates:
+        raise ValueError("future_index mengandung duplicate timestamp.")
+
+    origin = (
+        _coerce_utc_timestamp(forecast_origin)
+        if forecast_origin is not None
+        else working_history.index.max()
+    )
+
+    records: list[dict[str, Any]] = []
+    total_prediction_start = time.perf_counter()
+
+    for step, forecast_timestamp in enumerate(target_index, start=1):
+        feature_row = build_next_step_features(
+            working_history,
+            forecast_timestamp,
+            BASIC_FEATURE_SET,
+            target_col=target_col,
+        )
+        future = _make_prophet_regressor_future_row(forecast_timestamp, feature_row)
+
+        step_start = time.perf_counter()
+        forecast = model.predict(future)
+        step_prediction_time = time.perf_counter() - step_start
+
+        if "yhat" not in forecast.columns:
+            raise ValueError("Output Prophet-regressor tidak memiliki kolom 'yhat'.")
+        predicted_value = float(pd.to_numeric(forecast["yhat"], errors="raise").iloc[0])
+        if not np.isfinite(predicted_value):
+            raise ValueError("Prediksi Prophet-regressor menghasilkan non-finite.")
+
+        working_history = _append_target_row(
+            working_history,
+            timestamp=forecast_timestamp,
+            value=predicted_value,
+            target_col=target_col,
+        )
+
+        records.append(
+            {
+                TIMESTAMP_COL: forecast_timestamp,
+                ACTUAL_COL: np.nan,
+                PREDICTION_COL: predicted_value,
+                "model_name": model_name,
+                "feature_set": PROPHET_REGRESSOR_BASIC_FEATURE_SET,
+                "forecast_origin": origin,
+                "horizon_step": int(step),
+                "fold": "" if fold is None else fold,
+                "parameter_set_id": "" if parameter_set_id is None else parameter_set_id,
+                "prediction_time_seconds": round(step_prediction_time, 9),
+                "used_actual_future_for_features": False,
+            }
+        )
+
+    predictions = pd.DataFrame.from_records(records)
+    predictions.attrs["prediction_time_seconds_total"] = round(
+        time.perf_counter() - total_prediction_start,
+        9,
+    )
+    validate_prediction_output(
+        predictions,
+        expected_index=target_index,
+        horizon=horizon,
+    )
+    return predictions
+
+
+def forecast_validation_window_prophet_regressor(
+    model: Any,
+    train_history: pd.DataFrame,
+    validation_data: Union[pd.DataFrame, pd.Series, pd.DatetimeIndex, Sequence[Any]],
+    horizon: int = FORECAST_HORIZON,
+    *,
+    target_col: str = TARGET_COL,
+    model_name: str = "prophet_regressor_basic",
+    fold: Optional[Union[int, str]] = None,
+    parameter_set_id: Optional[Union[int, str]] = None,
+    update_history_with_actuals: bool = True,
+) -> pd.DataFrame:
+    """
+    Rolling-origin validation untuk Prophet dengan regressor XGBoost-Basic.
+    """
+    if horizon <= 0:
+        raise ValueError("horizon harus > 0")
+
+    validation_frame = _coerce_validation_frame(
+        validation_data,
+        target_col=target_col,
+    )
+    if validation_frame.empty:
+        raise ValueError("validation_data kosong.")
+
+    current_history = _validate_history(train_history, target_col=target_col)
+    if validation_frame.index.min() <= current_history.index.max():
+        raise ValueError(
+            "Validation window harus dimulai setelah timestamp akhir train_history."
+        )
+
+    all_predictions: list[pd.DataFrame] = []
+    block_id = 0
+
+    for start in range(0, len(validation_frame), horizon):
+        block_id += 1
+        validation_block = validation_frame.iloc[start : start + horizon]
+        block_horizon = int(len(validation_block))
+        origin = current_history.index.max()
+
+        block_predictions = recursive_forecast_prophet_regressor(
+            model,
+            current_history,
+            horizon=block_horizon,
+            future_index=validation_block.index,
+            target_col=target_col,
+            model_name=model_name,
+            forecast_origin=origin,
+            fold=fold,
+            parameter_set_id=parameter_set_id,
+        )
+        block_predictions["origin_block"] = int(block_id)
+        block_predictions["validation_start"] = validation_block.index.min()
+        block_predictions["validation_end"] = validation_block.index.max()
+
+        has_actual = target_col in validation_block.columns
+        if has_actual:
+            block_predictions[ACTUAL_COL] = validation_block[target_col].to_numpy(
+                dtype=float,
+            )
+
+        all_predictions.append(block_predictions)
+
+        if update_history_with_actuals and has_actual:
+            current_history = _append_actual_block(
+                current_history,
+                validation_block,
+                target_col=target_col,
+            )
+        else:
+            current_history = _append_prediction_block(
+                current_history,
+                block_predictions,
+                target_col=target_col,
+            )
+
+    predictions = pd.concat(all_predictions, ignore_index=True)
+    validate_prediction_output(
+        predictions,
+        expected_index=validation_frame.index,
+        horizon=len(validation_frame),
+    )
+    predictions.attrs["prediction_time_seconds_total"] = round(
+        float(predictions["prediction_time_seconds"].sum()),
+        9,
+    )
+    predictions.attrs["update_history_with_actuals"] = bool(update_history_with_actuals)
+    return predictions
+
+
 def validate_prediction_output(
     predictions: pd.DataFrame,
     *,
@@ -582,6 +783,26 @@ def _validate_predict_model(model: Any) -> None:
         raise TypeError("Model harus memiliki method callable predict().")
 
 
+def _make_prophet_regressor_future_row(
+    timestamp: pd.Timestamp,
+    feature_row: pd.DataFrame,
+) -> pd.DataFrame:
+    missing_columns = sorted(set(PROPHET_BASIC_REGRESSORS).difference(feature_row.columns))
+    if missing_columns:
+        raise ValueError(f"Feature row Prophet-regressor tidak lengkap: {missing_columns}")
+
+    future = pd.DataFrame(
+        {
+            "ds": [timestamp.tz_convert(MODELING_TZ).tz_localize(None)],
+        }
+    )
+    for column in PROPHET_BASIC_REGRESSORS:
+        future[column] = pd.to_numeric(feature_row[column], errors="raise").to_numpy(
+            dtype=float,
+        )
+    return future
+
+
 def _predict_one(model: Any, feature_row: pd.DataFrame) -> float:
     prediction = model.predict(feature_row)
     values = np.asarray(prediction).reshape(-1)
@@ -756,7 +977,9 @@ __all__ = [
     "PREDICTION_COL",
     "build_next_step_features",
     "forecast_validation_window",
+    "forecast_validation_window_prophet_regressor",
     "normalize_feature_set",
+    "recursive_forecast_prophet_regressor",
     "recursive_forecast_prophet",
     "recursive_forecast_xgb",
     "validate_prediction_output",
