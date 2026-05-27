@@ -29,6 +29,7 @@ from src.config import (
     METRICS,
     PRIMARY_METRIC,
     PROPHET_OUTPUT_DIR,
+    PROPHET_REGRESSOR_BASIC_OUTPUT_DIR,
     PROPHET_SEARCH_SPACE,
     SECONDARY_METRIC,
     TARGET_COL,
@@ -45,14 +46,19 @@ from src.features import ADVANCED_FEATURE_SET, BASIC_FEATURE_SET, get_feature_co
 from src.forecasting import (
     ACTUAL_COL,
     PREDICTION_COL,
+    forecast_validation_window_prophet_regressor,
     forecast_validation_window,
     recursive_forecast_prophet,
     validate_prediction_output,
 )
 from src.metrics import compute_all_metrics, summarize_cv_metrics
 from src.models.prophet_model import (
+    PROPHET_BASIC_REGRESSORS,
     PROPHET_FEATURE_SET,
+    PROPHET_REGRESSOR_BASIC_FEATURE_SET,
     fit_prophet_model,
+    make_prophet_regressor_frame,
+    make_prophet_regressor_model,
     make_prophet_future_frame,
 )
 from src.models.xgboost_model import fit_xgb_model
@@ -162,6 +168,143 @@ def run_prophet_tuning(
             secondary_metric=secondary_metric,
             cv_config=_cv_config_dict(n_folds, val_horizon, gap, forecast_horizon),
             skip_plots=skip_plots,
+        )
+        return final_outputs
+    except Exception as exc:
+        status = "failed"
+        error_message = str(exc)
+        append_experiment_run(
+            {
+                "experiment_name": experiment_name,
+                "model_name": model_name,
+                "feature_set": feature_set,
+                "status": status,
+                "error_message": error_message,
+                "total_runtime_seconds": elapsed_seconds(experiment_timer),
+            }
+        )
+        raise
+    finally:
+        total_runtime_seconds = elapsed_seconds(experiment_timer)
+        save_experiment_metadata(
+            {
+                "experiment_name": experiment_name,
+                "model_name": model_name,
+                "feature_set": feature_set,
+                "status": status,
+                "error_message": error_message,
+                "started_at_utc": started_at,
+                "finished_at_utc": utc_now_iso(),
+                "total_runtime_seconds": total_runtime_seconds,
+                "output_dir": str(output_dir),
+            },
+            paths["latest_run_metadata"],
+        )
+
+
+def run_prophet_regressor_basic_tuning(
+    *,
+    input_path: PathLike = TRAIN_VAL_PATH,
+    output_dir: PathLike = PROPHET_REGRESSOR_BASIC_OUTPUT_DIR,
+    search_space: Mapping[str, Sequence[Any]] = PROPHET_SEARCH_SPACE,
+    n_folds: int = CV_N_FOLDS,
+    val_horizon: int = CV_VAL_HORIZON_HOURS,
+    gap: int = CV_GAP_HOURS,
+    forecast_horizon: int = FORECAST_HORIZON,
+    max_parameter_sets: Optional[int] = None,
+    primary_metric: str = PRIMARY_METRIC,
+    secondary_metric: str = SECONDARY_METRIC,
+    skip_plots: bool = False,
+) -> dict[str, Any]:
+    """
+    Jalankan tuning Prophet dengan regressor XGBoost-Basic.
+    """
+    experiment_name = "tune_prophet_regressor_basic"
+    model_name = "prophet_regressor_basic"
+    feature_set = PROPHET_REGRESSOR_BASIC_FEATURE_SET
+    paths = prepare_tuning_output_paths(output_dir)
+    reset_tuning_outputs(paths)
+
+    experiment_timer = start_timer()
+    started_at = utc_now_iso()
+    status = "success"
+    error_message = ""
+    predictions_frames: list[pd.DataFrame] = []
+    metrics_rows: list[dict[str, Any]] = []
+
+    try:
+        ensure_dirs()
+        train_val = load_split_timeseries(input_path)
+        splits = make_expanding_window_splits(
+            train_val,
+            n_folds=n_folds,
+            val_horizon=val_horizon,
+            gap=gap,
+            forecast_horizon=forecast_horizon,
+        )
+        parameter_grid = list(
+            iter_parameter_grid(
+                search_space,
+                prefix="prophet_regressor_basic",
+                max_parameter_sets=max_parameter_sets,
+            )
+        )
+        save_tuning_params(
+            paths["params"],
+            experiment_name=experiment_name,
+            model_name=model_name,
+            feature_set=feature_set,
+            search_space=search_space,
+            parameter_grid=parameter_grid,
+            max_parameter_sets=max_parameter_sets,
+            cv_config=_cv_config_dict(n_folds, val_horizon, gap, forecast_horizon),
+            primary_metric=primary_metric,
+            secondary_metric=secondary_metric,
+            extra_metadata={
+                "regressors": list(PROPHET_BASIC_REGRESSORS),
+                "leakage_guardrail": (
+                    "Training regressors use training history only; validation "
+                    "regressor lags are built recursively from past history and "
+                    "previous predictions."
+                ),
+            },
+        )
+
+        for parameter_set_id, params in parameter_grid:
+            for split in splits:
+                fold_result = _run_one_prophet_regressor_basic_fold(
+                    split=split,
+                    params=params,
+                    parameter_set_id=parameter_set_id,
+                    experiment_name=experiment_name,
+                    model_name=model_name,
+                    feature_set=feature_set,
+                    forecast_horizon=forecast_horizon,
+                )
+                predictions_frames.append(fold_result["predictions"])
+                metrics_rows.append(fold_result["metrics"])
+                _append_dataframe_csv(fold_result["predictions"], paths["predictions"])
+                _append_dataframe_csv(pd.DataFrame([fold_result["metrics"]]), paths["metrics"])
+
+        final_outputs = finalize_tuning_outputs(
+            predictions_frames=predictions_frames,
+            metrics_rows=metrics_rows,
+            paths=paths,
+            search_space=search_space,
+            parameter_grid=parameter_grid,
+            experiment_name=experiment_name,
+            model_name=model_name,
+            feature_set=feature_set,
+            started_at=started_at,
+            input_path=input_path,
+            primary_metric=primary_metric,
+            secondary_metric=secondary_metric,
+            cv_config=_cv_config_dict(n_folds, val_horizon, gap, forecast_horizon),
+            skip_plots=skip_plots,
+            extra_metadata={
+                "regressors": list(PROPHET_BASIC_REGRESSORS),
+                "validation_predicted_with_recursive_forecasting": True,
+            },
         )
         return final_outputs
     except Exception as exc:
@@ -893,6 +1036,98 @@ def _run_one_prophet_fold(
         raise
 
 
+def _run_one_prophet_regressor_basic_fold(
+    *,
+    split: Mapping[str, Any],
+    params: Mapping[str, Any],
+    parameter_set_id: str,
+    experiment_name: str,
+    model_name: str,
+    feature_set: str,
+    forecast_horizon: int,
+) -> dict[str, Any]:
+    fold = int(split["fold"])
+    train = split["train"]
+    validation = split["validation"]
+    fold_timer = start_timer()
+    train_time: Optional[float] = None
+    prediction_time: Optional[float] = None
+    status = "success"
+    error_message = ""
+
+    try:
+        train_timer = start_timer()
+        prophet_train = make_prophet_regressor_frame(
+            train,
+            include_y=True,
+            drop_na=True,
+        )
+        model = make_prophet_regressor_model(
+            params,
+            regressors=PROPHET_BASIC_REGRESSORS,
+        )
+        model.fit(prophet_train)
+        train_time = elapsed_seconds(train_timer)
+
+        prediction_timer = start_timer()
+        predictions = forecast_validation_window_prophet_regressor(
+            model,
+            train,
+            validation,
+            horizon=forecast_horizon,
+            model_name=model_name,
+            fold=fold,
+            parameter_set_id=parameter_set_id,
+            update_history_with_actuals=True,
+        )
+        prediction_time = elapsed_seconds(prediction_timer)
+        total_runtime = elapsed_seconds(fold_timer)
+        metrics = _build_fold_metrics_row(
+            predictions,
+            params=params,
+            experiment_name=experiment_name,
+            model_name=model_name,
+            feature_set=feature_set,
+            fold=fold,
+            parameter_set_id=parameter_set_id,
+            train=train,
+            validation=validation,
+            train_time_seconds=train_time,
+            prediction_time_seconds=prediction_time,
+            total_runtime_seconds=total_runtime,
+        )
+        metrics["source_train_history_rows"] = int(train.shape[0])
+        metrics["regressor_training_rows"] = int(prophet_train.shape[0])
+        metrics["regressors"] = "|".join(PROPHET_BASIC_REGRESSORS)
+        metrics["validation_predicted_with_recursive_forecasting"] = True
+        _log_fold_success(
+            metrics,
+            experiment_name=experiment_name,
+            model_name=model_name,
+            feature_set=feature_set,
+        )
+        return {"predictions": predictions, "metrics": metrics}
+    except Exception as exc:
+        status = "failed"
+        error_message = str(exc)
+        total_runtime = elapsed_seconds(fold_timer)
+        _log_fold_failure(
+            experiment_name=experiment_name,
+            model_name=model_name,
+            feature_set=feature_set,
+            fold=fold,
+            parameter_set_id=parameter_set_id,
+            train=train,
+            validation=validation,
+            train_time_seconds=train_time,
+            prediction_time_seconds=prediction_time,
+            total_runtime_seconds=total_runtime,
+            status=status,
+            error_message=error_message,
+        )
+        raise
+
+
 def _run_one_xgb_fold(
     *,
     split: Mapping[str, Any],
@@ -1246,6 +1481,7 @@ __all__ = [
     "normalize_xgb_feature_set",
     "prepare_tuning_output_paths",
     "render_tuning_summary",
+    "run_prophet_regressor_basic_tuning",
     "run_prophet_tuning",
     "run_xgb_tuning",
     "select_xgb_training_rows",

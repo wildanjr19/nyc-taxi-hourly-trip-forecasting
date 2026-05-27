@@ -51,6 +51,7 @@ REPORTS_DIR = OUTPUT_DIR / "reports"
 
 # Subfolder eksperimen per model
 PROPHET_OUTPUT_DIR = EXPERIMENTS_DIR / "prophet"
+PROPHET_REGRESSOR_BASIC_OUTPUT_DIR = EXPERIMENTS_DIR / "prophet_regressor_basic"
 XGB_BASIC_OUTPUT_DIR = EXPERIMENTS_DIR / "xgb_basic"
 XGB_ADVANCED_OUTPUT_DIR = EXPERIMENTS_DIR / "xgb_advanced"
 
@@ -194,6 +195,7 @@ def ensure_dirs() -> None:
         SPLIT_OUTPUT_DIR / "summaries",
         FEATURE_OUTPUT_DIR / "summaries",
         PROPHET_OUTPUT_DIR,
+        PROPHET_REGRESSOR_BASIC_OUTPUT_DIR,
         XGB_BASIC_OUTPUT_DIR,
         XGB_ADVANCED_OUTPUT_DIR,
         LOGS_DIR,
