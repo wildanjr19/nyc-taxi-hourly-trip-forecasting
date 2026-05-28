@@ -245,7 +245,7 @@ Penelitian ini menerapkan beberapa guardrail untuk menjaga validitas hasil:
 
 | # | Item | Status | Keterangan |
 |---|------|--------|------------|
-| 1 | Sanity check SARIMA | ✅ Done | Auto-SARIMA diuji untuk memvalidasi apakah model statistik konvensional cocok pada data ini. Hasil: residual berautokorelasi dan tidak white-noise, sehingga SARIMA tidak layak digunakan. Ref: [sarima_sanity_test](src/experiments/sarima_sanity_test.py) |
+| 1 | Sanity check SARIMA | ✅ Done | Auto-SARIMA diuji untuk memvalidasi apakah model statistik konvensional cocok pada data ini. Hasil: residual berautokorelasi dan tidak white-noise, sehingga SARIMA tidak layak digunakan. Ref: [sarima_sanity_test](src/experiments/sarima_sanity_test.py) & [result sarima sanity test](outputs/experiments/sarima_sanity_test/summaries/sarima_sanity_test_summary.md)|
 | 2 | Tambah regressor Prophet | ✅ Done | Prophet ditambahkan regressor agar perbandingan dengan XGBoost-Basic lebih adil (keduanya kini menggunakan fitur tambahan). Output revisi diberi suffix `_revisi_1`. |
 
 ## Citation and Attribution
