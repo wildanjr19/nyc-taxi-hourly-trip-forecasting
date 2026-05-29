@@ -1,0 +1,33 @@
+======================================================================
+HYPERPARAMETER TUNING SUMMARY - tune_prophet_regressor_basic
+======================================================================
+
+1. OUTPUT STATUS
+   - Status: success
+   - Model: prophet_regressor_basic
+   - Feature set: prophet_basic_regressors
+   - Input path: F:\Research\Research BDTS\data\processed\train_val.csv
+
+2. CV CONFIGURATION
+   - Folds: 5
+   - Validation horizon: 168 hours
+   - Forecast horizon: 24 hours
+   - Gap: 0 hours
+
+3. BEST CONFIGURATION
+   - Parameter set: prophet_regressor_basic_003
+   - Selection rule: minimize mae_mean; tie-breaker rmse_mean
+   - Params: {"changepoint_prior_scale": 0.01, "seasonality_mode": "additive", "seasonality_prior_scale": 5.0}
+
+4. TIME COST COMPUTING
+   - Sum fold runtime seconds: 835.459919
+   - Sum train time seconds: 247.747393
+   - Sum prediction time seconds: 587.710155
+
+5. OUTPUT FILES
+   - Params: F:\Research\Research BDTS\outputs\experiments\prophet_regressor_basic\params.json
+   - CV metrics: F:\Research\Research BDTS\outputs\experiments\prophet_regressor_basic\cv_metrics.csv
+   - CV metrics summary: F:\Research\Research BDTS\outputs\experiments\prophet_regressor_basic\cv_metrics_summary.csv
+   - CV predictions: F:\Research\Research BDTS\outputs\experiments\prophet_regressor_basic\cv_predictions.csv
+   - Best params: F:\Research\Research BDTS\outputs\experiments\prophet_regressor_basic\best_params.json
+   - Runtime summary: F:\Research\Research BDTS\outputs\experiments\prophet_regressor_basic\runtime_summary.csv
