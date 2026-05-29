@@ -131,6 +131,11 @@ python -m src.experiments.model_interpretability
 python -m src.experiments.error_analysis
 ```
 
+Catatan canonical: perintah `python -m src.experiments.tune_prophet` pada
+versi ini menjalankan Prophet-Regressor-Basic. Nama command dipertahankan agar
+alur reproduksi tetap sederhana, sedangkan metodologi Prophet sudah memakai
+regressor basic yang sebanding dengan XGBoost-Basic.
+
 Tahap tersebut mencakup:
 
 | Tahap | Script | Output utama |
@@ -138,10 +143,10 @@ Tahap tersebut mencakup:
 | Preprocessing | `python -m src.preprocessing` | `data/processed/full_preprocessed.csv` |
 | Hold-out split | `python -m src.splits` | `data/processed/train_val.csv`, `data/processed/final_test.csv` |
 | Feature engineering | `python -m src.features` | `data/processed/features/` |
-| Tuning Prophet | `python -m src.experiments.tune_prophet` | `outputs/experiments/prophet/` |
+| Tuning Prophet-Regressor-Basic | `python -m src.experiments.tune_prophet` | `outputs/experiments/prophet_regressor_basic/` |
 | Tuning XGBoost-Basic | `python -m src.experiments.tune_xgb_basic` | `outputs/experiments/xgb_basic/` |
 | Tuning XGBoost-Advanced | `python -m src.experiments.tune_xgb_advanced` | `outputs/experiments/xgb_advanced/` |
-| Experiment A | `python -m src.experiments.experiment_a` | `outputs/reports/experiment_a_prophet_vs_xgb_basic.md` |
+| Experiment A | `python -m src.experiments.experiment_a` | `outputs/reports/experiment_a_prophet_regressor_basic_vs_xgb_basic.md` |
 | Experiment B | `python -m src.experiments.experiment_b` | `outputs/reports/experiment_b_xgb_basic_vs_xgb_advanced.md` |
 | Retraining best configurations | `python -m src.experiments.retrain_best_models` | `outputs/experiments/retraining/` |
 | Final testing | `python -m src.experiments.final_test` | `outputs/final_test/`, `outputs/reports/final_test_report.md` |
@@ -218,12 +223,12 @@ File yang umum dicek setelah pipeline selesai:
 |---|---|
 | `outputs/logs/runtime_logs.csv` | log time cost computing terpusat |
 | `outputs/logs/experiment_runs.jsonl` | log metadata run eksperimen |
-| `outputs/experiments/prophet/best_params.json` | best params Prophet |
+| `outputs/experiments/prophet_regressor_basic/best_params.json` | best params Prophet-Regressor-Basic |
 | `outputs/experiments/xgb_basic/best_params.json` | best params XGBoost-Basic |
 | `outputs/experiments/xgb_advanced/best_params.json` | best params XGBoost-Advanced |
 | `outputs/experiments/*/cv_metrics.csv` | metrics per fold dan parameter |
 | `outputs/experiments/*/cv_predictions.csv` | prediction output CV |
-| `outputs/reports/experiment_a_prophet_vs_xgb_basic.md` | report Experiment A |
+| `outputs/reports/experiment_a_prophet_regressor_basic_vs_xgb_basic.md` | report Experiment A |
 | `outputs/reports/experiment_b_xgb_basic_vs_xgb_advanced.md` | report Experiment B |
 | `outputs/experiments/retraining/model_registry.json` | registry model hasil retraining |
 | `outputs/experiments/retraining/training_summary.csv` | ringkasan training time retraining |
@@ -297,7 +302,7 @@ Sebelum menggunakan hasil eksperimen, pastikan prinsip berikut tetap terpenuhi:
 Untuk melihat hasil tuning dan CV model:
 
 ```text
-outputs/experiments/prophet/
+outputs/experiments/prophet_regressor_basic/
 outputs/experiments/xgb_basic/
 outputs/experiments/xgb_advanced/
 ```
@@ -305,14 +310,14 @@ outputs/experiments/xgb_advanced/
 Untuk membaca ringkasan komparatif tahap CV:
 
 ```text
-outputs/reports/experiment_a_prophet_vs_xgb_basic.md
+outputs/reports/experiment_a_prophet_regressor_basic_vs_xgb_basic.md
 outputs/reports/experiment_b_xgb_basic_vs_xgb_advanced.md
 ```
 
 Experiment A membandingkan:
 
 ```text
-Prophet vs XGBoost-Basic
+Prophet-Regressor-Basic vs XGBoost-Basic
 ```
 
 Experiment B membandingkan:
@@ -411,12 +416,12 @@ Untuk hasil penelitian penuh, jalankan ulang tanpa `--max-parameter-sets`.
 Pastikan tuning tiga model sudah selesai dan menghasilkan:
 
 ```text
-outputs/experiments/prophet/best_params.json
+outputs/experiments/prophet_regressor_basic/best_params.json
 outputs/experiments/xgb_basic/best_params.json
 outputs/experiments/xgb_advanced/best_params.json
 ```
 
-Experiment A membutuhkan artefak Prophet dan XGBoost-Basic. Experiment B
+Experiment A membutuhkan artefak Prophet-Regressor-Basic dan XGBoost-Basic. Experiment B
 membutuhkan artefak XGBoost-Basic dan XGBoost-Advanced.
 
 ### Retraining gagal karena best params tidak ditemukan
@@ -424,7 +429,7 @@ membutuhkan artefak XGBoost-Basic dan XGBoost-Advanced.
 Pastikan tahap tuning sudah selesai dan file berikut tersedia:
 
 ```text
-outputs/experiments/prophet/best_params.json
+outputs/experiments/prophet_regressor_basic/best_params.json
 outputs/experiments/xgb_basic/best_params.json
 outputs/experiments/xgb_advanced/best_params.json
 ```

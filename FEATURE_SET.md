@@ -48,7 +48,16 @@ rolling langsung pada target saat ini
 - month
 
 # Catatan Prophet
-Prophet menggunakan:
+Prophet pada alur utama menggunakan:
 - internal trend modelling
 - internal seasonality modelling
-sehingga feature engineering eksternal minimal
+- regressor basic yang sebanding dengan XGBoost-Basic:
+  - lag_1
+  - lag_24
+  - lag_168
+  - hour
+  - day_of_week
+
+Lag regressor Prophet untuk validation/final test tetap dibangun secara
+recursive dari history masa lalu dan prediksi sebelumnya, bukan dari actual
+masa depan.

@@ -7,14 +7,15 @@ reproducible, bebas data leakage, dan sesuai dengan karakteristik deret waktu.
 
 Model yang dibandingkan:
 
-- Prophet
+- Prophet-Regressor-Basic
 - XGBoost-Basic
 - XGBoost-Advanced
 
 Research questions (rumusan masalah) utama:
 
 1. Apakah model machine learning sederhana, yaitu XGBoost-Basic, mampu
-   mengungguli pendekatan forecasting klasik Prophet?
+   mengungguli pendekatan forecasting klasik Prophet setelah Prophet diberi
+   regressor basic yang sebanding?
 2. Apakah advanced feature engineering meningkatkan performa XGBoost pada
    forecasting permintaan taksi per jam?
 
@@ -62,11 +63,12 @@ Prinsip validasi time series yang digunakan:
 
 ## Desain Eksperimen
 
-### Experiment A: Prophet vs XGBoost-Basic
+### Experiment A: Prophet-Regressor-Basic vs XGBoost-Basic
 
 Eksperimen ini menjawab apakah model machine learning sederhana dengan fitur
 lag dan calendar minimal dapat mengungguli Prophet yang memiliki pemodelan
-trend dan seasonality internal.
+trend/seasonality internal serta regressor basic (`lag_1`, `lag_24`,
+`lag_168`, `hour`, `day_of_week`).
 
 Output utama:
 
@@ -246,7 +248,7 @@ Penelitian ini menerapkan beberapa guardrail untuk menjaga validitas hasil:
 | # | Item | Status | Keterangan |
 |---|------|--------|------------|
 | 1 | Sanity check SARIMA | ✅ Done | Auto-SARIMA diuji untuk memvalidasi apakah model statistik konvensional cocok pada data ini. Hasil: residual berautokorelasi dan tidak white-noise, sehingga SARIMA tidak layak digunakan. Ref: [sarima_sanity_test](src/experiments/sarima_sanity_test.py) & [result sarima sanity test](outputs/experiments/sarima_sanity_test/summaries/sarima_sanity_test_summary.md)|
-| 2 | Tambah regressor Prophet | ✅ Done | Prophet ditambahkan regressor agar perbandingan dengan XGBoost-Basic lebih adil (keduanya kini menggunakan fitur tambahan). Output revisi diberi suffix `_revisi_1`. |
+| 2 | Tambah regressor Prophet | ✅ Done | Prophet dengan regressor basic sudah diblend menjadi alur utama. Script canonical tetap dijalankan melalui `python -m src.experiments.tune_prophet`, `experiment_a`, `retrain_best_models`, dan `final_test`. |
 
 ## Citation and Attribution
 - Wildan Abid Al H
