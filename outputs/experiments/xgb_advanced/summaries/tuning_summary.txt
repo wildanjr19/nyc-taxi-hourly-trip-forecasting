@@ -1,0 +1,33 @@
+======================================================================
+HYPERPARAMETER TUNING SUMMARY - tune_xgb_advanced
+======================================================================
+
+1. OUTPUT STATUS
+   - Status: success
+   - Model: xgboost
+   - Feature set: xgb_advanced
+   - Input path: F:\Research\Research BDTS\data\processed\train_val.csv
+
+2. CV CONFIGURATION
+   - Folds: 5
+   - Validation horizon: 168 hours
+   - Forecast horizon: 24 hours
+   - Gap: 0 hours
+
+3. BEST CONFIGURATION
+   - Parameter set: xgb_advanced_210
+   - Selection rule: minimize mae_mean; tie-breaker rmse_mean
+   - Params: {"colsample_bytree": 1.0, "learning_rate": 0.1, "max_depth": 7, "min_child_weight": 10, "n_estimators": 600, "subsample": 0.8}
+
+4. TIME COST COMPUTING
+   - Sum fold runtime seconds: 2653.842677
+   - Sum train time seconds: 1011.092424
+   - Sum prediction time seconds: 1638.275169
+
+5. OUTPUT FILES
+   - Params: F:\Research\Research BDTS\outputs\experiments\xgb_advanced\params.json
+   - CV metrics: F:\Research\Research BDTS\outputs\experiments\xgb_advanced\cv_metrics.csv
+   - CV metrics summary: F:\Research\Research BDTS\outputs\experiments\xgb_advanced\cv_metrics_summary.csv
+   - CV predictions: F:\Research\Research BDTS\outputs\experiments\xgb_advanced\cv_predictions.csv
+   - Best params: F:\Research\Research BDTS\outputs\experiments\xgb_advanced\best_params.json
+   - Runtime summary: F:\Research\Research BDTS\outputs\experiments\xgb_advanced\runtime_summary.csv
