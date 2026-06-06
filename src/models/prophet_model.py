@@ -12,15 +12,24 @@ Catatan timezone:
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 import numpy as np
 import pandas as pd
 
 from src.config import MODELING_TZ, TARGET_COL, TIMESTAMP_COL
+from src.features import (
+    BASIC_FEATURE_SET,
+    add_calendar_features,
+    add_lag_features,
+    drop_rows_with_feature_na,
+    get_feature_columns,
+)
 
 
 PROPHET_FEATURE_SET = "prophet_internal"
+PROPHET_REGRESSOR_BASIC_FEATURE_SET = "prophet_basic_regressors"
+PROPHET_BASIC_REGRESSORS = get_feature_columns(BASIC_FEATURE_SET)
 
 DEFAULT_PROPHET_PARAMS: dict[str, Any] = {
     "weekly_seasonality": True,
@@ -60,6 +69,20 @@ def make_prophet_model(params: Optional[Mapping[str, Any]] = None) -> Any:
     return Prophet(**model_params)
 
 
+def make_prophet_regressor_model(
+    params: Optional[Mapping[str, Any]] = None,
+    *,
+    regressors: Sequence[str] = PROPHET_BASIC_REGRESSORS,
+) -> Any:
+    """
+    Buat Prophet dengan external regressors yang eksplisit.
+    """
+    model = make_prophet_model(params)
+    for regressor in regressors:
+        model.add_regressor(regressor)
+    return model
+
+
 def make_prophet_frame(
     df: pd.DataFrame,
     *,
@@ -81,6 +104,56 @@ def make_prophet_frame(
         frame["y"] = y
 
     return frame
+
+
+def make_prophet_regressor_frame(
+    df: pd.DataFrame,
+    *,
+    target_col: str = TARGET_COL,
+    include_y: bool = True,
+    drop_na: bool = True,
+) -> pd.DataFrame:
+    """
+    Ubah time series menjadi frame Prophet + regressor XGBoost-Basic.
+
+    Regressor yang dibuat:
+    - lag_1
+    - lag_24
+    - lag_168
+    - hour
+    - day_of_week
+    """
+    _validate_time_indexed_frame(df, target_col=target_col, require_target=True)
+
+    engineered = add_lag_features(df, target_col=target_col)
+    engineered = add_calendar_features(engineered, ["hour", "day_of_week"])
+    feature_columns = list(PROPHET_BASIC_REGRESSORS)
+
+    selected_columns = [target_col, *feature_columns]
+
+    selected = engineered[selected_columns].copy()
+    if drop_na:
+        selected = drop_rows_with_feature_na(
+            selected,
+            feature_columns,
+            target_col=target_col,
+        )
+
+    ds = selected.index.tz_convert(MODELING_TZ).tz_localize(None)
+    frame = pd.DataFrame({"ds": ds}, index=selected.index)
+    if include_y:
+        y = pd.to_numeric(selected[target_col], errors="raise").to_numpy(dtype=float)
+        if not np.isfinite(y).all():
+            raise ValueError("Target training Prophet-regressor mengandung non-finite.")
+        frame["y"] = y
+
+    for column in feature_columns:
+        values = pd.to_numeric(selected[column], errors="raise").to_numpy(dtype=float)
+        if not np.isfinite(values).all():
+            raise ValueError(f"Regressor Prophet mengandung non-finite: {column}")
+        frame[column] = values
+
+    return frame.reset_index(drop=True)
 
 
 def make_prophet_future_frame(index: pd.DatetimeIndex) -> pd.DataFrame:
@@ -121,6 +194,26 @@ def fit_prophet_model(
     return model
 
 
+def fit_prophet_regressor_model(
+    train_df: pd.DataFrame,
+    *,
+    params: Optional[Mapping[str, Any]] = None,
+    target_col: str = TARGET_COL,
+) -> Any:
+    """
+    Fit Prophet dengan regressor XGBoost-Basic pada training fold.
+    """
+    model = make_prophet_regressor_model(params, regressors=PROPHET_BASIC_REGRESSORS)
+    prophet_train = make_prophet_regressor_frame(
+        train_df,
+        target_col=target_col,
+        include_y=True,
+        drop_na=True,
+    )
+    model.fit(prophet_train)
+    return model
+
+
 def _validate_time_indexed_frame(
     df: pd.DataFrame,
     *,
@@ -147,10 +240,15 @@ def _validate_time_indexed_frame(
 
 __all__ = [
     "DEFAULT_PROPHET_PARAMS",
+    "PROPHET_BASIC_REGRESSORS",
     "PROPHET_FEATURE_SET",
+    "PROPHET_REGRESSOR_BASIC_FEATURE_SET",
     "SUPPORTED_PROPHET_PARAMS",
     "fit_prophet_model",
+    "fit_prophet_regressor_model",
     "make_prophet_frame",
     "make_prophet_future_frame",
     "make_prophet_model",
+    "make_prophet_regressor_frame",
+    "make_prophet_regressor_model",
 ]
