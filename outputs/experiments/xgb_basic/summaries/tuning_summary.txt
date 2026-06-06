@@ -1,0 +1,33 @@
+======================================================================
+HYPERPARAMETER TUNING SUMMARY - tune_xgb_basic
+======================================================================
+
+1. OUTPUT STATUS
+   - Status: success
+   - Model: xgboost
+   - Feature set: xgb_basic
+   - Input path: F:\Research\Research BDTS\data\processed\train_val.csv
+
+2. CV CONFIGURATION
+   - Folds: 5
+   - Validation horizon: 168 hours
+   - Forecast horizon: 24 hours
+   - Gap: 0 hours
+
+3. BEST CONFIGURATION
+   - Parameter set: xgb_basic_292
+   - Selection rule: minimize mae_mean; tie-breaker rmse_mean
+   - Params: {"colsample_bytree": 1.0, "learning_rate": 0.1, "max_depth": 3, "min_child_weight": 1, "n_estimators": 1000, "subsample": 0.8}
+
+4. TIME COST COMPUTING
+   - Sum fold runtime seconds: 1663.681676
+   - Sum train time seconds: 555.956835
+   - Sum prediction time seconds: 1104.093295
+
+5. OUTPUT FILES
+   - Params: F:\Research\Research BDTS\outputs\experiments\xgb_basic\params.json
+   - CV metrics: F:\Research\Research BDTS\outputs\experiments\xgb_basic\cv_metrics.csv
+   - CV metrics summary: F:\Research\Research BDTS\outputs\experiments\xgb_basic\cv_metrics_summary.csv
+   - CV predictions: F:\Research\Research BDTS\outputs\experiments\xgb_basic\cv_predictions.csv
+   - Best params: F:\Research\Research BDTS\outputs\experiments\xgb_basic\best_params.json
+   - Runtime summary: F:\Research\Research BDTS\outputs\experiments\xgb_basic\runtime_summary.csv
