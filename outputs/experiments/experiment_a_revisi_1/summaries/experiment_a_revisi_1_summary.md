@@ -1,6 +1,6 @@
 # Experiment A Revisi 1: Prophet-Regressor-Basic vs XGBoost-Basic
 
-Run UTC: 2026-05-25T09:17:52.393498+00:00
+Run UTC: 2026-06-07T05:01:35.133856+00:00
 
 ## Scope
 
@@ -94,3 +94,4 @@ Penambahan regressor basic memperbaiki fairness perbandingan CV karena Prophet d
 - Actual vs predicted plot: `F:\Research\Research BDTS\outputs\experiments\experiment_a_revisi_1\figures\actual_vs_predicted_best_cv.png`
 - Residual distribution plot: `F:\Research\Research BDTS\outputs\experiments\experiment_a_revisi_1\figures\residual_distribution_best_cv.png`
 - Horizon error plot: `F:\Research\Research BDTS\outputs\experiments\experiment_a_revisi_1\figures\absolute_error_by_horizon.png`
+- Fold error plot: `F:\Research\Research BDTS\outputs\experiments\experiment_a_revisi_1\figures\prophet_regressor_basic_vs_xgb_basic_error_by_fold.png`
