@@ -1,0 +1,22 @@
+EDA ZOOM TIME SERIES SUMMARY
+======================================================================
+
+Source data: F:\Research\Research BDTS\data\processed\full_preprocessed.csv
+Target column: trip_count
+Timezone shown: America/New_York local
+Total source rows: 10918
+
+Generated figures:
+- F:\Research\Research BDTS\outputs\eda\figures\02_zoom_timeseries_selected_windows.png
+- F:\Research\Research BDTS\outputs\eda\figures\02_zoom_timeseries_01.png
+- F:\Research\Research BDTS\outputs\eda\figures\02_zoom_timeseries_02.png
+- F:\Research\Research BDTS\outputs\eda\figures\02_zoom_timeseries_03.png
+- F:\Research\Research BDTS\outputs\eda\figures\02_zoom_timeseries_04.png
+
+Zoom windows:
+- Minggu awal data / Tahun Baru: 2025-01-01 00:00:00 to 2025-01-07 23:00:00 | rows=168 | mean=3717.07 | min=178 | max=8468
+- Minggu permintaan tinggi pertengahan tahun: 2025-05-12 00:00:00 to 2025-05-18 23:00:00 | rows=168 | mean=6538.49 | min=302 | max=13066
+- Minggu puncak permintaan Desember: 2025-12-11 00:00:00 to 2025-12-17 23:00:00 | rows=168 | mean=6985.68 | min=452 | max=13378
+- Anomali permintaan rendah Februari 2026: 2026-02-20 00:00:00 to 2026-02-26 23:00:00 | rows=168 | mean=4392.07 | min=112 | max=10600
+
+Time cost computing: 10.730244 seconds
