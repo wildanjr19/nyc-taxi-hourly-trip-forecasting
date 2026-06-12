@@ -1,5 +1,10 @@
 """
-Script tahap 10: Hyperparameter tuning Prophet.
+Script tahap 10: Hyperparameter tuning Prophet-Regressor-Basic.
+
+Prophet pada alur utama memakai regressor basic yang sebanding dengan
+XGBoost-Basic: lag_1, lag_24, lag_168, hour, dan day_of_week. Validation
+diprediksi secara recursive agar lag masa depan tidak memakai actual
+validation/test.
 
 Contoh:
     python -m src.experiments.tune_prophet
@@ -12,11 +17,13 @@ import argparse
 from typing import Optional, Sequence
 
 from src.config import CV_N_FOLDS, CV_VAL_HORIZON_HOURS, FORECAST_HORIZON
-from src.experiments.tuning_utils import run_prophet_tuning
+from src.experiments.tuning_utils import run_prophet_regressor_basic_tuning
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Tune Prophet with time series CV.")
+    parser = argparse.ArgumentParser(
+        description="Tune Prophet-Regressor-Basic with time series CV."
+    )
     parser.add_argument("--max-parameter-sets", type=int, default=None)
     parser.add_argument("--n-folds", type=int, default=CV_N_FOLDS)
     parser.add_argument("--val-horizon", type=int, default=CV_VAL_HORIZON_HOURS)
@@ -27,7 +34,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
     args = parse_args(argv)
-    metadata = run_prophet_tuning(
+    metadata = run_prophet_regressor_basic_tuning(
         n_folds=args.n_folds,
         val_horizon=args.val_horizon,
         forecast_horizon=args.forecast_horizon,
@@ -35,7 +42,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         skip_plots=args.skip_plots,
     )
     best = metadata["best"]
-    print("Tuning Prophet selesai.")
+    print("Tuning Prophet-Regressor-Basic selesai.")
     print(f"Best parameter set: {best['parameter_set_id']}")
     print(f"Best params: {best['params']}")
     print(f"Output dir: {metadata['outputs']['base']}")
