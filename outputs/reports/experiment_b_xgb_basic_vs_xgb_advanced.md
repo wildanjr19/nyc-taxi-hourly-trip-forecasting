@@ -1,6 +1,6 @@
 # Experiment B: XGBoost-Basic vs XGBoost-Advanced
 
-Run UTC: 2026-05-17T11:58:23.570314+00:00
+Run UTC: 2026-06-05T10:49:32.655766+00:00
 
 ## Scope
 
@@ -107,3 +107,4 @@ Pada window CV ini, tambahan lag, rolling statistics, dan calendar features belu
 - Residual distribution plot: `F:\Research\Research BDTS\outputs\experiments\experiment_b\figures\residual_distribution_best_cv.png`
 - Horizon error plot: `F:\Research\Research BDTS\outputs\experiments\experiment_b\figures\absolute_error_by_horizon.png`
 - Behavioral error plot: `F:\Research\Research BDTS\outputs\experiments\experiment_b\figures\mae_by_behavior_segment.png`
+- Fold error plot: `F:\Research\Research BDTS\outputs\experiments\experiment_b\figures\xgb_basic_vs_advanced_error_by_fold.png`
