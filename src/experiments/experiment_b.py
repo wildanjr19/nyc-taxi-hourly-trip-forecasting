@@ -167,6 +167,10 @@ def run_experiment_b(*, skip_plots: bool = False) -> dict[str, Any]:
                 behavioral_error,
                 outputs["behavioral_error_plot"],
             )
+            save_fold_error_plot(
+                fold_comparison,
+                outputs["fold_error_plot"],
+            )
 
         advanced_improves = advanced_improves_primary_metric(improvements)
         report_text = render_experiment_b_report(
@@ -274,6 +278,7 @@ def experiment_b_output_paths() -> dict[str, Path]:
         "residual_distribution_plot": figures_dir / "residual_distribution_best_cv.png",
         "horizon_error_plot": figures_dir / "absolute_error_by_horizon.png",
         "behavioral_error_plot": figures_dir / "mae_by_behavior_segment.png",
+        "fold_error_plot": figures_dir / "xgb_basic_vs_advanced_error_by_fold.png",
         "summary": summaries_dir / "experiment_b_summary.md",
         "metadata": base / "experiment_metadata.json",
         "report": REPORT_PATH,
@@ -387,6 +392,50 @@ def save_behavioral_error_plot(
     ax.legend(title="")
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+
+
+def save_fold_error_plot(
+    fold_comparison: pd.DataFrame,
+    output_path: Path,
+) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg", force=True)
+    import matplotlib.pyplot as plt
+
+    plot_df = fold_comparison.sort_values("fold", kind="mergesort").copy()
+    x = np.arange(plot_df.shape[0])
+    width = 0.36
+
+    basic_col = f"mae_{BASELINE_LABEL}"
+    advanced_col = f"mae_{CHALLENGER_LABEL}"
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+    ax.bar(
+        x - width / 2,
+        plot_df[basic_col],
+        width,
+        label=BASELINE_LABEL,
+        color="#2f6fbb",
+    )
+    ax.bar(
+        x + width / 2,
+        plot_df[advanced_col],
+        width,
+        label=CHALLENGER_LABEL,
+        color="#d77a27",
+    )
+
+    ax.set_title("Perbandingan Error XGBoost-Basic dan XGBoost-Advanced pada Setiap Fold")
+    ax.set_xlabel("Fold")
+    ax.set_ylabel("MAE")
+    ax.set_xticks(x)
+    ax.set_xticklabels(plot_df["fold"].astype(str))
+    ax.legend(frameon=False)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180)
     plt.close(fig)
 
 
@@ -592,6 +641,7 @@ def render_experiment_b_report(
                 f"- Residual distribution plot: `{outputs['residual_distribution_plot']}`",
                 f"- Horizon error plot: `{outputs['horizon_error_plot']}`",
                 f"- Behavioral error plot: `{outputs['behavioral_error_plot']}`",
+                f"- Fold error plot: `{outputs['fold_error_plot']}`",
             ]
         )
 
@@ -600,4 +650,3 @@ def render_experiment_b_report(
 
 if __name__ == "__main__":
     main()
-

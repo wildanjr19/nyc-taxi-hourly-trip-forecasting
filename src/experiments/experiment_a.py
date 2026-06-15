@@ -1,11 +1,13 @@
 """
-Script tahap 11: Experiment A - Prophet vs XGBoost-Basic.
+Script tahap 11: Experiment A - Prophet-Regressor-Basic vs XGBoost-Basic.
 
 Experiment A menjawab pertanyaan:
 Apakah machine learning sederhana mampu mengungguli forecasting klasik?
 
 Scope tahap ini:
 - Membandingkan hasil CV dari best configuration hasil tuning.
+- Model Prophet pada alur utama memakai regressor basic yang sebanding dengan
+  XGBoost-Basic.
 - Tidak membaca final_test dan tidak melakukan pemilihan parameter baru.
 - XGBoost-Basic tetap diaudit dari output recursive forecasting CV.
 
@@ -29,7 +31,7 @@ from src.config import (
     FORECAST_HORIZON,
     METRICS,
     PRIMARY_METRIC,
-    PROPHET_OUTPUT_DIR,
+    PROPHET_REGRESSOR_BASIC_OUTPUT_DIR,
     REPORTS_DIR,
     TARGET_COL,
     TIMESTAMP_COL,
@@ -47,9 +49,11 @@ from src.tracking import (
 )
 
 
-EXPERIMENT_NAME = "experiment_a_prophet_vs_xgb_basic"
+EXPERIMENT_NAME = "experiment_a_prophet_regressor_basic_vs_xgb_basic"
 OUTPUT_DIR = EXPERIMENTS_DIR / "experiment_a"
-REPORT_PATH = REPORTS_DIR / "experiment_a_prophet_vs_xgb_basic.md"
+REPORT_PATH = REPORTS_DIR / "experiment_a_prophet_regressor_basic_vs_xgb_basic.md"
+BASELINE_LABEL = "Prophet-Regressor-Basic"
+CHALLENGER_LABEL = "XGBoost-Basic"
 
 REQUIRED_PREDICTION_COLUMNS = {
     TIMESTAMP_COL,
@@ -67,7 +71,10 @@ REQUIRED_PREDICTION_COLUMNS = {
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run Experiment A comparison: Prophet vs XGBoost-Basic."
+        description=(
+            "Run Experiment A comparison: "
+            "Prophet-Regressor-Basic vs XGBoost-Basic."
+        )
     )
     parser.add_argument(
         "--skip-plots",
@@ -98,11 +105,11 @@ def run_experiment_a(*, skip_plots: bool = False) -> dict[str, Any]:
         ensure_experiment_a_dirs(outputs)
 
         prophet = load_best_tuning_artifacts(
-            model_label="Prophet",
-            output_dir=PROPHET_OUTPUT_DIR,
+            model_label=BASELINE_LABEL,
+            output_dir=PROPHET_REGRESSOR_BASIC_OUTPUT_DIR,
         )
         xgb_basic = load_best_tuning_artifacts(
-            model_label="XGBoost-Basic",
+            model_label=CHALLENGER_LABEL,
             output_dir=XGB_BASIC_OUTPUT_DIR,
         )
 
@@ -111,14 +118,14 @@ def run_experiment_a(*, skip_plots: bool = False) -> dict[str, Any]:
         comparison = build_metric_comparison([prophet, xgb_basic])
         improvements = build_improvement_summary(
             comparison,
-            baseline_label="Prophet",
-            challenger_label="XGBoost-Basic",
+            baseline_label=BASELINE_LABEL,
+            challenger_label=CHALLENGER_LABEL,
         )
         fold_comparison = build_fold_comparison(
             prophet["best_metrics"],
             xgb_basic["best_metrics"],
-            baseline_label="Prophet",
-            challenger_label="XGBoost-Basic",
+            baseline_label=BASELINE_LABEL,
+            challenger_label=CHALLENGER_LABEL,
         )
         runtime_comparison = build_runtime_comparison([prophet, xgb_basic])
         predictions = build_combined_best_predictions([prophet, xgb_basic])
@@ -147,6 +154,10 @@ def run_experiment_a(*, skip_plots: bool = False) -> dict[str, Any]:
             save_horizon_error_plot(
                 horizon_error,
                 outputs["horizon_error_plot"],
+            )
+            save_fold_error_plot(
+                fold_comparison,
+                outputs["fold_error_plot"],
             )
 
         report_text = render_experiment_a_report(
@@ -188,7 +199,7 @@ def run_experiment_a(*, skip_plots: bool = False) -> dict[str, Any]:
             make_runtime_record(
                 experiment_name=EXPERIMENT_NAME,
                 model_name="comparison",
-                feature_set="prophet_internal_vs_xgb_basic",
+                feature_set="prophet_basic_regressors_vs_xgb_basic",
                 n_prediction_rows=int(predictions.shape[0]),
                 prediction_time_seconds=0.0,
                 total_runtime_seconds=total_runtime_seconds,
@@ -215,7 +226,7 @@ def run_experiment_a(*, skip_plots: bool = False) -> dict[str, Any]:
             make_runtime_record(
                 experiment_name=EXPERIMENT_NAME,
                 model_name="comparison",
-                feature_set="prophet_internal_vs_xgb_basic",
+                feature_set="prophet_basic_regressors_vs_xgb_basic",
                 total_runtime_seconds=total_runtime_seconds,
                 status=status,
                 error_message=error_message,
@@ -248,6 +259,8 @@ def experiment_a_output_paths() -> dict[str, Path]:
         "actual_vs_predicted_plot": figures_dir / "actual_vs_predicted_best_cv.png",
         "residual_distribution_plot": figures_dir / "residual_distribution_best_cv.png",
         "horizon_error_plot": figures_dir / "absolute_error_by_horizon.png",
+        "fold_error_plot": figures_dir
+        / "prophet_regressor_basic_vs_xgb_basic_error_by_fold.png",
         "summary": summaries_dir / "experiment_a_summary.md",
         "metadata": base / "experiment_metadata.json",
         "report": REPORT_PATH,
@@ -789,6 +802,55 @@ def save_horizon_error_plot(
     plt.close(fig)
 
 
+def save_fold_error_plot(
+    fold_comparison: pd.DataFrame,
+    output_path: Path,
+    *,
+    title: str = (
+        "Perbandingan Error Prophet-Regressor-Basic dan XGBoost-Basic pada Setiap Fold"
+    ),
+) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg", force=True)
+    import matplotlib.pyplot as plt
+
+    plot_df = fold_comparison.sort_values("fold", kind="mergesort").copy()
+    x = np.arange(plot_df.shape[0])
+    width = 0.36
+
+    prophet_col = f"mae_{BASELINE_LABEL}"
+    xgb_col = f"mae_{CHALLENGER_LABEL}"
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.bar(
+        x - width / 2,
+        plot_df[prophet_col],
+        width,
+        label=BASELINE_LABEL,
+        color="#2f6fbb",
+    )
+    ax.bar(
+        x + width / 2,
+        plot_df[xgb_col],
+        width,
+        label=CHALLENGER_LABEL,
+        color="#d77a27",
+    )
+
+    ax.set_title(title)
+    ax.set_xlabel("Fold")
+    ax.set_ylabel("MAE")
+    ax.set_xticks(x)
+    ax.set_xticklabels(plot_df["fold"].astype(str))
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.legend(frameon=False)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
 def render_experiment_a_report(
     *,
     comparison: pd.DataFrame,
@@ -819,7 +881,7 @@ def render_experiment_a_report(
     )
 
     lines = [
-        "# Experiment A: Prophet vs XGBoost-Basic",
+        "# Experiment A: Prophet-Regressor-Basic vs XGBoost-Basic",
         "",
         f"Run UTC: {started_at}",
         "",
@@ -829,6 +891,12 @@ def render_experiment_a_report(
             "Experiment A memakai artefak tuning/CV terbaik dari tahap 10. "
             "Final test tidak dibaca dan tidak digunakan pada tahap ini, sehingga "
             "benchmark test tetap tersimpan untuk tahap final testing setelah retraining."
+        ),
+        "",
+        (
+            "Prophet pada alur utama memakai regressor basic (`lag_1`, `lag_24`, "
+            "`lag_168`, `hour`, `day_of_week`) agar perbandingan dengan "
+            "XGBoost-Basic lebih fair dan menjadi satu metodologi canonical."
         ),
         "",
         "## Best Configurations",
@@ -867,7 +935,7 @@ def render_experiment_a_report(
                 float_digits=3,
             ),
             "",
-            "## Improvement vs Prophet",
+            "## Improvement vs Prophet-Regressor-Basic",
             "",
             dataframe_to_markdown(improvements, float_digits=3),
             "",
@@ -882,10 +950,10 @@ def render_experiment_a_report(
                 fold_comparison[
                     [
                         "fold",
-                        "mae_Prophet",
-                        "mae_XGBoost-Basic",
+                        f"mae_{BASELINE_LABEL}",
+                        f"mae_{CHALLENGER_LABEL}",
                         "mae_absolute_reduction",
-                        "mae_percent_reduction_vs_Prophet",
+                        f"mae_percent_reduction_vs_{BASELINE_LABEL}",
                         "mae_winner",
                     ]
                 ],
@@ -913,18 +981,18 @@ def render_experiment_a_report(
             (
                 f"Berdasarkan CV best configuration, {winner} menjadi model terbaik "
                 f"untuk Experiment A pada metric utama {PRIMARY_METRIC}. "
-                f"XGBoost-Basic menurunkan MAE sebesar "
+                f"{CHALLENGER_LABEL} menurunkan MAE sebesar "
                 f"{mae_improvement['percent_reduction_vs_baseline']:.2f}% "
-                f"dibanding Prophet, RMSE sebesar "
+                f"dibanding {BASELINE_LABEL}, RMSE sebesar "
                 f"{rmse_improvement['percent_reduction_vs_baseline']:.2f}%, "
                 f"dan sMAPE sebesar "
                 f"{smape_improvement['percent_reduction_vs_baseline']:.2f}%."
             ),
             "",
             (
-                "Hasil ini menunjukkan bahwa fitur lag sederhana dan calendar minimal "
-                "sudah menangkap struktur temporal jangka pendek dengan lebih kuat "
-                "daripada trend/seasonality internal Prophet pada window CV ini. "
+                "Hasil ini menunjukkan apakah model machine learning sederhana "
+                "masih unggul setelah Prophet diberi informasi lag dan calendar "
+                "basic yang sebanding. "
                 "Kesimpulan final tetap menunggu retraining dan final testing yang "
                 "dijalankan pada tahap berikutnya."
             ),
@@ -946,6 +1014,7 @@ def render_experiment_a_report(
                 f"- Actual vs predicted plot: `{outputs['actual_vs_predicted_plot']}`",
                 f"- Residual distribution plot: `{outputs['residual_distribution_plot']}`",
                 f"- Horizon error plot: `{outputs['horizon_error_plot']}`",
+                f"- Fold error plot: `{outputs['fold_error_plot']}`",
             ]
         )
 
